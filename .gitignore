@@ -1,2 +1,8 @@
 ml-latest/
 venv/
+ml-latest-small/
+pycache/
+__pycache__/
+*.csv
+*.parquet
+*.env
