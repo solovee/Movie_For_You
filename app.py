@@ -12,8 +12,9 @@ CORS(app)  # Permite requisições do seu frontend
 # A rota abaixo precisa ser a correta para seu projeto
 try:
     df_pivot = pd.read_csv("df_pivot.csv", index_col="userId")
+    df_pivot.columns = df_pivot.columns.astype(int)
     # Substitua NaN por 0 para evitar erros no KNN, se necessário
-    df_pivot = df_pivot.fillna(0)
+    #df_pivot = df_pivot.fillna(0)
     print("DataFrame pivotado carregado com sucesso.")
 except FileNotFoundError:
     print("Erro: O arquivo 'df_pivot.csv' não foi encontrado. Verifique o caminho.")
