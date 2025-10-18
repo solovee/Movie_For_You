@@ -1,199 +1,178 @@
 import pandas as pd
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
+import pickle
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 
 # Crie sua instância do app Flask
 app = Flask(__name__)
-CORS(app)  # Permite requisições do seu frontend
+CORS(app)  # Permite requisições do frontend
 
-# Carregue os dados de popularidade e filmes usados
-# A rota abaixo precisa ser a correta para seu projeto
+# ---------------------------
+# Carregamento de dados
+# ---------------------------
 try:
-    df_pivot = pd.read_csv("df_pivot.csv", index_col="userId")
-    df_pivot.columns = df_pivot.columns.astype(int)
-    # Substitua NaN por 0 para evitar erros no KNN, se necessário
-    #df_pivot = df_pivot.fillna(0)
-    print("DataFrame pivotado carregado com sucesso.")
-except FileNotFoundError:
-    print("Erro: O arquivo 'df_pivot.csv' não foi encontrado. Verifique o caminho.")
-    df_pivot = None
+    movies_df = pd.read_csv("ml-latest/movies.csv")
+    ratings_df = pd.read_csv("ml-latest-small/ratings.csv")
+    print("CSV de filmes e ratings carregados com sucesso.")
+except FileNotFoundError as e:
+    print(f"Erro: arquivo não encontrado - {e}")
+    movies_df = None
+    ratings_df = None
+
+# Filtra ratings para manter apenas filmes que existem em movies.csv
+if movies_df is not None and ratings_df is not None:
+    ratings_df = ratings_df[ratings_df['movieId'].isin(movies_df['movieId'])].copy()
+    movie_ids_com_ratings = ratings_df['movieId'].unique()
+    movies_usados_df = movies_df[movies_df['movieId'].isin(movie_ids_com_ratings)].reset_index(drop=True)
+    print(f"Número de filmes disponíveis: {len(movies_usados_df)}")
+else:
+    movies_usados_df = None
 
 try:
-    df_filmes = pd.read_csv("filmes_usados.csv")
-    print("DataFrame de filmes carregado com sucesso.")
+    movie_embs = np.load("movie_embeddings.npy")  # shape (n_movies, emb_dim)
+    print(f"Embeddings de filmes carregados: shape {movie_embs.shape}")
 except FileNotFoundError:
-    print("Erro: O arquivo 'filmes_usados.csv' não foi encontrado. Verifique o caminho.")
-    df_filmes = None
+    print("Erro: arquivo 'movie_embeddings.npy' não encontrado.")
+    movie_embs = None
 
-# Suas funções de recomendação (copie e cole aqui)
-def recomendar_usuario(df_pivot, meus_ratings, limiar_sim=0.7, random_state=42, caminho_popularidade="popularidade_aplicacao.csv"):
-    # ... (cole sua função recomendar_usuario aqui) ...
-    np.random.seed(random_state)
-    minha_linha = pd.Series(meus_ratings, name='meu_usuario')
-    meus_filmes = list(meus_ratings.keys())
+try:
+    with open("movie2idx.pkl", "rb") as f:
+        movie2idx = pickle.load(f)
+    print(f"Mapa movie2idx carregado: {len(movie2idx)} filmes")
+except FileNotFoundError:
+    print("Erro: arquivo 'movie2idx.pkl' não encontrado.")
+    movie2idx = None
+
+# Cria o mapeamento inverso (idx -> movieId)
+if movie2idx is not None:
+    idx2movie = {idx: mid for mid, idx in movie2idx.items()}
+else:
+    idx2movie = None
+
+# ---------------------------
+
+def gerar_usuario_embedding(meus_ratings):
+    """Gera embedding do usuário a partir de suas avaliações"""
+    if movie2idx is None or movie_embs is None:
+        return None
     
-    df_pop = pd.read_csv(caminho_popularidade)
-    popularidade = df_pop.set_index("movieId")["popularidade"].to_dict()
+    # Filtra apenas filmes que existem no mapeamento
+    rated_movies = [mid for mid in meus_ratings if mid in movie2idx]
     
-    # ... (o restante da sua função) ...
-    estrategias = [
-        (1.0, 'todos'),
-        (0.75, 'aleatorio'),
-        (0.75, 'populares'),
-        (0.5, 'aleatorio'),
-        (0.5, 'populares'),
-        (0.25, 'aleatorio'),
-        (0.25, 'populares')
-    ]
+    if not rated_movies:
+        print("Nenhum filme avaliado está no dataset de embeddings.")
+        return None
     
-    melhor_usuario = None
-    melhor_sim = -1
-    vizinhos_extra = []
-
-    for perc, modo in estrategias:
-        print(f"\n🔎 Testando estratégia: {modo.upper()} ({int(perc*100)}% dos filmes)")
-
-        if perc < 1.0:
-            n_filmes = max(1, int(len(meus_filmes) * perc))
-            if modo == 'aleatorio':
-                filmes_selecionados = list(np.random.choice(meus_filmes, size=n_filmes, replace=False))
-            elif modo == 'populares':
-                filmes_ordenados = [f for f in meus_filmes if f in popularidade]
-                filmes_ordenados.sort(key=lambda x: popularidade[x], reverse=True)
-                filmes_selecionados = filmes_ordenados[:n_filmes]
-        else:
-            filmes_selecionados = meus_filmes
-        
-        print(f"🎬 Filmes usados nesta rodada: {filmes_selecionados}")
-
-        df_filtrado = df_pivot.dropna(subset=filmes_selecionados, how='any')
-        print(f"📊 Usuários restantes após filtro: {df_filtrado.shape[0]}")
-        
-        if df_filtrado.shape[0] == 0:
-            print("⚠️ Nenhum usuário encontrado para essa seleção de filmes.")
-            continue
-        
-        X = df_filtrado[filmes_selecionados].values
-        minha_vetor = minha_linha[filmes_selecionados].values.reshape(1, -1)
-        
-        n_vizinhos = min(4, df_filtrado.shape[0]) 
-        knn = NearestNeighbors(n_neighbors=n_vizinhos, metric='cosine')
-        knn.fit(X)
-        dist, ind = knn.kneighbors(minha_vetor, n_neighbors=n_vizinhos)
-        
-        dist = dist[0]
-        ind = ind[0]
-        
-        sims = 1 - dist
-        usuarios = df_filtrado.index[ind].tolist()
-        
-        print("👥 Vizinhos encontrados:")
-        for u, s in zip(usuarios, sims):
-            print(f"   - {u} (similaridade={s:.4f})")
-        
-        sim = sims[0]
-        usuario_encontrado = usuarios[0]
-        
-        if sim > limiar_sim:
-            print("✅ Similaridade acima do limiar, parando busca.")
-            melhor_usuario = usuario_encontrado
-            melhor_sim = sim
-            vizinhos_extra = list(zip(usuarios[1:], sims[1:]))
-            break
-        else:
-            print("❌ Similaridade baixa, tentando próxima estratégia...")
-
-    return {
-        'usuario_mais_similar': melhor_usuario,
-        'similaridade': melhor_sim,
-        'filmes_usados': meus_filmes,
-        'vizinhos_extras': vizinhos_extra
-    }
-
-def recomendar_filmes(df_pivot, resultado_recomendar, meus_ratings, top_n=3, min_rating=4):
-    # ... (cole sua função recomendar_filmes aqui) ...
-    candidatos = [resultado_recomendar["usuario_mais_similar"]] + resultado_recomendar.get("vizinhos_extras", [])
-    filmes_assistidos = set(meus_ratings.keys())
+    # Obtém os índices dos filmes avaliados
+    indices = [movie2idx[mid] for mid in rated_movies]
     
-    for user_id in candidatos:
-        if user_id is None:
-            continue
-        
-        print(f"\n🎯 Tentando recomendar filmes do usuário {user_id}...")
-        linha_usuario = df_pivot.loc[user_id]
-        
-        filmes_ordenados = (
-            linha_usuario.dropna()
-            .sort_values(ascending=False)
-        )
-        
-        filmes_validos = [mid for mid, nota in filmes_ordenados.items()
-                          if mid not in filmes_assistidos and nota >= min_rating]
-        
-        if len(filmes_validos) >= top_n:
-            recomendados = filmes_validos[:top_n]
-            print(f"✅ Filmes recomendados: {recomendados}")
-            return recomendados
-        else:
-            print(f"⚠️ Usuário {user_id} não tem filmes suficientes (>= {min_rating}) para recomendar.")
+    # Obtém as notas normalizadas
+    ratings = np.array([meus_ratings[mid] for mid in rated_movies], dtype=np.float32).reshape(-1, 1)
     
-    print("❌ Nenhum usuário tinha recomendações válidas.")
-    return []
+    # Obtém os embeddings dos filmes avaliados
+    emb_filmes = movie_embs[indices]  # shape (n_rated, emb_dim)
+    
+    # Calcula embedding do usuário como média ponderada
+    u_emb = (ratings * emb_filmes).sum(axis=0) / ratings.sum()
+    
+    return u_emb
+
+def recomendar_top_filmes(u_emb, meus_ratings, top_n=3):
+    """Retorna os títulos dos top_n filmes mais similares ao usuário"""
+    if movie_embs is None or movie2idx is None or idx2movie is None:
+        return []
+    
+    # Calcula similaridade via produto escalar (cosine similarity se embeddings normalizados)
+    scores = movie_embs @ u_emb  # shape (n_movies,)
+    
+    # Cria máscara para filmes já avaliados
+    avaliados_idx = set([movie2idx[mid] for mid in meus_ratings if mid in movie2idx])
+    
+    # Zera scores dos filmes já avaliados
+    scores_filtered = scores.copy()
+    for idx in avaliados_idx:
+        scores_filtered[idx] = -np.inf
+    
+    # Obtém top_n filmes com maior score
+    top_indices = scores_filtered.argsort()[::-1][:top_n]
+    
+    # Converte índices para movieIds
+    top_movieIds = [idx2movie[idx] for idx in top_indices if idx in idx2movie]
+    
+    # Busca títulos dos filmes - RETORNA APENAS OS TÍTULOS
+    filmes_recomendados = []
+    for mid in top_movieIds:
+        filme = movies_usados_df[movies_usados_df['movieId'] == mid]
+        if not filme.empty:
+            filmes_recomendados.append(filme.iloc[0]['title'])
+    
+    return filmes_recomendados
+
 
 @app.route('/')
 def home():
-    """Rota principal que renderiza a página HTML."""
+    """Rota principal que renderiza a página HTML"""
     return render_template('index.html')
 
 @app.route('/api/filmes', methods=['GET'])
 def get_filmes():
-    """Rota que retorna a lista de todos os filmes do CSV."""
-    if df_filmes is not None:
-        filmes_json = df_filmes.to_json(orient='records')
-        return filmes_json, 200
-    return jsonify({"error": "Filmes data not available"}), 500
+    """Rota que retorna todos os filmes do CSV"""
+    if movies_usados_df is not None:
+        return movies_usados_df.to_json(orient='records'), 200
+    return jsonify({"error": "Filmes não disponíveis"}), 500
 
 @app.route('/api/recomendar', methods=['POST'])
 def processar_recomendacao():
-    """Rota que recebe os ratings do usuário e retorna as recomendações."""
-    if df_pivot is None or df_filmes is None:
-        return jsonify({"error": "Database not loaded."}), 500
-
-    meus_ratings = request.json.get('ratings', {})
-    meus_ratings_int = {int(k): float(v) for k, v in meus_ratings.items()}
-    
-    if len(meus_ratings_int) < 7:
-        return jsonify({"error": "Avalie pelo menos 7 filmes para receber recomendações."}), 400
+    """Rota que recebe ratings do usuário e retorna recomendações"""
+    if movies_usados_df is None or movie_embs is None or movie2idx is None:
+        return jsonify({"error": "Base de dados não carregada."}), 500
 
     try:
-        resultado_usuario = recomendar_usuario(df_pivot, meus_ratings_int)
+        meus_ratings = request.json.get('ratings', {})
+        # Converte chaves para int e valores para float
+        meus_ratings = {int(k): float(v) for k, v in meus_ratings.items()}
         
-        if resultado_usuario["usuario_mais_similar"] is None:
-            return jsonify({
-                "error": "Não foi possível encontrar um usuário similar o suficiente.",
-                "detalhes": "Tente avaliar mais filmes, especialmente os mais populares."
-            }), 404
+        if len(meus_ratings) < 3:
+            return jsonify({"error": "Avalie pelo menos 3 filmes para receber recomendações."}), 400
 
-        ids_recomendados = recomendar_filmes(df_pivot, resultado_usuario, meus_ratings_int, top_n=3)
+        # Gera embedding do usuário
+        u_emb = gerar_usuario_embedding(meus_ratings)
+        if u_emb is None:
+            return jsonify({"error": "Nenhum filme avaliado está no dataset de embeddings."}), 400
         
-        if not ids_recomendados:
-            return jsonify({
-                "error": "Não foi possível encontrar filmes para recomendar.",
-                "detalhes": "O usuário similar pode não ter filmes com nota alta o suficiente."
-            }), 404
+        # Gera recomendações (retorna lista de strings com títulos)
+        filmes_recomendados = recomendar_top_filmes(u_emb, meus_ratings, top_n=3)
         
-        filmes_recomendados = df_filmes[df_filmes['movieId'].isin(ids_recomendados)]['title'].tolist()
+        if not filmes_recomendados:
+            return jsonify({"error": "Não foi possível gerar recomendações."}), 400
         
+        # Garante que está retornando uma lista simples de strings
         return jsonify({
             "status": "success",
-            "filmes_recomendados": filmes_recomendados
+            "filmes_recomendados": list(filmes_recomendados)  # força conversão para lista
         }), 200
-        
+    
     except Exception as e:
         print(f"Erro na recomendação: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Ocorreu um erro interno: {str(e)}"}), 500
 
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Rota para verificar o status do sistema"""
+    status = {
+        "movies_loaded": movies_usados_df is not None,
+        "embeddings_loaded": movie_embs is not None,
+        "movie2idx_loaded": movie2idx is not None,
+        "num_movies": len(movies_usados_df) if movies_usados_df is not None else 0,
+        "embedding_dim": movie_embs.shape[1] if movie_embs is not None else 0
+    }
+    return jsonify(status), 200
+
+# ---------------------------
+# Inicialização do app
+# ---------------------------
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Falha ao buscar a lista de filmes.');
             }
             allMovies = await response.json();
+            console.log(`Quantidade de filmes: ${allMovies.length}`);
+
             displayMovies(allMovies);
         } catch (error) {
             showToast('Erro ao carregar catálogo: ' + error.message, 'error');
@@ -73,13 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         ratedCountSpan.textContent = ratedMovies.length;
-        recommendBtn.disabled = ratedMovies.length < 7;
+        recommendBtn.disabled = ratedMovies.length < 3;
     };
 
     // Função para enviar os dados e buscar recomendações
     const getRecommendations = async () => {
-        if (Object.keys(userRatings).length < 7) {
-            showToast('Por favor, avalie no mínimo 7 filmes.', 'warning');
+        if (Object.keys(userRatings).length < 3) {
+            showToast('Por favor, avalie no mínimo 3 filmes.', 'warning');
             return;
         }
 
