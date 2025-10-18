@@ -1,4 +1,5 @@
 Sistema de recomendação Flask de Filmes baseado no dataset: https://www.kaggle.com/datasets/grouplens/movielens-latest-small.
+imagens meramente ilustrativas*
 <p align="center">
   <img src="assets/captura1.png" alt="tela inicial" width="800"/>
 </p>
