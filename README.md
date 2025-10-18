@@ -3,7 +3,7 @@ Sistema de recomendação Flask de Filmes baseado no dataset: https://www.kaggle
   <img src="assets/captura1.png" alt="tela inicial" width="800"/>
 </p>
 <p align="center">
-  <img src="assets/captura2.png" alt="tela inicial" width="800"/>
+  <img src="assets/captura2.png" alt="tela recomendacao" width="800"/>
 </p>
 
 
