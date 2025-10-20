@@ -296,3 +296,23 @@ body {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+#item-search-bar {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid #444;
+    background-color: #333646;
+    color: var(--text-color);
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+#item-recommendations-list li {
+    background: #333646;
+    padding: 1rem;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    animation: fadeIn 0.5s ease-out;
+}

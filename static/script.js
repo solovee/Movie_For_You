@@ -75,13 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         ratedCountSpan.textContent = ratedMovies.length;
-        recommendBtn.disabled = ratedMovies.length < 3;
+        recommendBtn.disabled = ratedMovies.length < 1;
     };
 
     // Função para enviar os dados e buscar recomendações
     const getRecommendations = async () => {
-        if (Object.keys(userRatings).length < 3) {
-            showToast('Por favor, avalie no mínimo 3 filmes.', 'warning');
+        if (Object.keys(userRatings).length < 1) {
+            showToast('Por favor, avalie no mínimo um filme.', 'warning');
             return;
         }
 
@@ -188,6 +188,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     recommendBtn.addEventListener('click', getRecommendations);
+    const itemSearchBar = document.getElementById('item-search-bar');
+    const itemRecommendBtn = document.getElementById('item-recommend-btn');
+    const itemRecommendationsList = document.getElementById('item-recommendations-list');
+
+    // Habilita botão se houver texto
+    itemSearchBar.addEventListener('input', () => {
+        itemRecommendBtn.disabled = itemSearchBar.value.trim() === '';
+    });
+
+    // Função para buscar recomendação item-to-item
+    const getItemRecommendations = async () => {
+        const query = itemSearchBar.value.trim();
+        if (!query) return;
+
+        // Buscar movieId correspondente
+        const movie = allMovies.find(m => m.title.toLowerCase() === query.toLowerCase());
+        if (!movie) {
+            showToast('Filme não encontrado no catálogo.', 'warning');
+            return;
+        }
+
+        loadingModal.style.display = 'flex';
+        try {
+            const response = await fetch('http://127.0.0.1:5000/api/recomendar_item', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ movieId: movie.movieId, top_n: 5 })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro na requisição.');
+            }
+
+            // Exibir recomendações
+            itemRecommendationsList.innerHTML = '';
+            if (data.recomendados.length === 0) {
+                itemRecommendationsList.innerHTML = `<li>Nenhuma recomendação encontrada.</li>`;
+            } else {
+                data.recomendados.forEach(title => {
+                    const li = document.createElement('li');
+                    li.textContent = title;
+                    itemRecommendationsList.appendChild(li);
+                });
+            }
+
+            showToast('Recomendações item-to-item geradas!', 'success');
+        } catch (error) {
+            showToast('Erro: ' + error.message, 'error');
+            console.error('Erro item-to-item:', error);
+        } finally {
+            loadingModal.style.display = 'none';
+        }
+    };
+
+    itemRecommendBtn.addEventListener('click', getItemRecommendations);
+
 
     // Início da aplicação
     fetchMovies();

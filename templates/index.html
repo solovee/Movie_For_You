@@ -11,24 +11,34 @@
     <div class="container">
         <header class="header">
             <h1 class="logo">Recomendações <span class="highlight">Cinematográficas</span></h1>
-            <p class="subtitle">Descubra seu próximo filme favorito. Avalie pelo menos 3 para começar!</p>
+            <p class="subtitle">Descubra seu próximo filme favorito. Avalie pelo menos um para começar!</p>
         </header>
 
         <main class="main-content">
             <div class="card" id="card-avalia">
                 <div class="card-header">
                     <h2>Avalie Filmes</h2>
-                    <span class="count-box"><span id="rated-count">0</span> / 3</span>
+                    <span class="count-box"><span id="rated-count">0</span> / 1</span>
                 </div>
                 <button class="btn btn-primary" id="open-catalog-btn">Abrir Catálogo</button>
                 <ul id="ratings-list" class="ratings-list"></ul>
                 <button class="btn btn-secondary" id="recommend-btn" disabled>Recomendar Filmes</button>
             </div>
-            
             <div class="card card-result" id="card-result" style="display:none;">
-                <h2>Sua Lista de Recomendações</h2>
+                <h2>Lista de Recomendações baseado nos filmes que você avaliou</h2>
                 <ul id="recommendations-list" class="recommendations-list"></ul>
             </div>
+            <div class="card" id="card-item-to-item">
+                <div class="card-header">
+                    <h2>Recomendações parecidas com...</h2>
+                </div>
+                <input type="text" id="item-search-bar" placeholder="Digite o nome de um filme...">
+                <button class="btn btn-secondary" id="item-recommend-btn" disabled>Recomendar Filmes Semelhantes</button>
+            <ul id="item-recommendations-list" class="recommendations-list"></ul>
+</div>
+
+            
+            
         </main>
         
         <div id="catalog-modal" class="modal">
