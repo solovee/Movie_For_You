@@ -23,7 +23,7 @@ CORS(app)
 # ---------------------------
 try:
     movies_df = pd.read_csv("ml-latest/movies.csv")
-    ratings_df = pd.read_csv("ml-latest-small/ratings.csv")
+    ratings_df = pd.read_csv("ratings_com_tags.csv")
     print("CSV de filmes e ratings carregados com sucesso.")
 except FileNotFoundError as e:
     print(f"Erro: arquivo não encontrado - {e}")
@@ -66,10 +66,10 @@ else:
 # Carregamento de tags
 # ---------------------------
 try:
-    tags_df = pd.read_csv("ml-latest-small/tags.csv")  # deve ter 'movieId' e 'tag'
+    tags_df = pd.read_csv("tags_filmes_filtradas.csv")  # deve ter 'movieId' e 'tag'
     print(f"Tags carregadas: {len(tags_df)} registros")
 except FileNotFoundError:
-    print("Aviso: arquivo 'tags.csv' não encontrado.")
+    print("Aviso: arquivo 'tags_filmes_filtradas.csv' não encontrado.")
     tags_df = None
 
 # Agrupa tags por filme
