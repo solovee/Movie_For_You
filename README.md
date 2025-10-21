@@ -1,6 +1,6 @@
 Sistema de recomendação de Filmes baseado no dataset: https://www.kaggle.com/datasets/grouplens/movielens-latest-small.
 
-imagens meramente ilustrativas*
+imagens ilustrativas*
 <p align="center">
   <img src="assets/3.png" alt="tela inicial" width="800"/>
 </p>
