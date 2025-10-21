@@ -5,7 +5,7 @@ imagens ilustrativas*
   <img src="assets/3.png" alt="tela inicial" width="800"/>
 </p>
 <p align="center">
-  <img src="assets/2.png" alt="tela recomendacao" width="800"/>
+  <img src="assets/rec.png" alt="tela recomendacao" width="800"/>
 </p>
 <p align="center">
   <img src="assets/1.png" alt="tela recomendacao parecidos" width="800"/>
