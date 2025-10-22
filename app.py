@@ -22,7 +22,7 @@ CORS(app)
 # Carregamento de dados
 # ---------------------------
 try:
-    movies_df = pd.read_csv("ml-latest/movies.csv")
+    movies_df = pd.read_csv("movies.csv")
     ratings_df = pd.read_csv("ratings_com_tags.csv")
     print("CSV de filmes e ratings carregados com sucesso.")
 except FileNotFoundError as e:
