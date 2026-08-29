@@ -1,0 +1,8 @@
+{
+  "n_users": 610,
+  "n_movies": 9314,
+  "emb_dim": 64,
+  "n_genres": 20,
+  "tag_dim": 384,
+  "normalization": "L2 (cosine similarity)"
+}
